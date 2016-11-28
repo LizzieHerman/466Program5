@@ -57,11 +57,14 @@ class NetworkPacket:
     ## packet encoding lengths 
     dst_addr_S_length = 5
     prot_S_length = 1
-    
-    ##@param dst_addr: address of the destination host
+    prior_S_length = 1
+
+    ##@param priority: priority of the packet
+    # @param dst_addr: address of the destination host
     # @param data_S: packet payload
     # @param prot_S: upper layer protocol for the packet (data, or control)
-    def __init__(self, dst_addr, prot_S, data_S):
+    def __init__(self, priority, dst_addr, prot_S, data_S):
+        self.priority = priority
         self.dst_addr = dst_addr
         self.data_S = data_S
         self.prot_S = prot_S
@@ -72,7 +75,8 @@ class NetworkPacket:
         
     ## convert packet to a byte string for transmission over links
     def to_byte_S(self):
-        byte_S = str(self.dst_addr).zfill(self.dst_addr_S_length)
+        byte_S = str(self.priority)
+        byte_S += str(self.dst_addr).zfill(self.dst_addr_S_length)
         if self.prot_S == 'data':
             byte_S += '1'
         elif self.prot_S == 'control':
@@ -86,16 +90,17 @@ class NetworkPacket:
     # @param byte_S: byte string representation of the packet
     @classmethod
     def from_byte_S(self, byte_S):
-        dst_addr = int(byte_S[0 : NetworkPacket.dst_addr_S_length])
-        prot_S = byte_S[NetworkPacket.dst_addr_S_length : NetworkPacket.dst_addr_S_length + NetworkPacket.prot_S_length]
+        priority = int(byte_S[0 : NetworkPacket.prior_S_length])
+        dst_addr = int(byte_S[NetworkPacket.prior_S_length : NetworkPacket.prior_S_length + NetworkPacket.dst_addr_S_length])
+        prot_S = byte_S[NetworkPacket.prior_S_length + NetworkPacket.dst_addr_S_length : NetworkPacket.prior_S_length + NetworkPacket.dst_addr_S_length + NetworkPacket.prot_S_length]
         if prot_S == '1':
             prot_S = 'data'
         elif prot_S == '2':
             prot_S = 'control'
         else:
             raise('%s: unknown prot_S field: %s' %(self, prot_S))
-        data_S = byte_S[NetworkPacket.dst_addr_S_length + NetworkPacket.prot_S_length : ]        
-        return self(dst_addr, prot_S, data_S)
+        data_S = byte_S[NetworkPacket.prior_S_length + NetworkPacket.dst_addr_S_length + NetworkPacket.prot_S_length : ]
+        return self(priority, dst_addr, prot_S, data_S)
     
 
     
@@ -118,7 +123,7 @@ class Host:
     # @param data_S: data being transmitted to the network layer
     # @param priority: packet priority
     def udt_send(self, dst_addr, data_S, priority=0):
-        p = NetworkPacket(dst_addr, 'data', data_S)
+        p = NetworkPacket(priority, dst_addr, 'data', data_S)
         print('%s: sending packet "%s"' % (self, p))
         self.intf_L[0].put(p.to_byte_S(), 'out') #send packets always enqueued successfully
         
@@ -206,8 +211,9 @@ class Router:
     ## send out route update
     # @param i Interface number on which to send out a routing update
     def send_routes(self, i):
+        priority = 0 # i don't know what the priority should be
         # a sample route update packet
-        p = NetworkPacket(0, 'control', 'Sample routing table packet')
+        p = NetworkPacket(priority, 0, 'control', 'Sample routing table packet')
         try:
             #TODO: add logic to send out a route update
             print('%s: sending routing update "%s" from interface %d' % (self, p, i))
