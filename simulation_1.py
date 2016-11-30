@@ -1,7 +1,7 @@
 '''
 Created on Oct 12, 2016
 
-@author: mwitt_000
+@author: mwitt_000, LizzieHerman, ColleenRothe
 '''
 import network
 import link
@@ -11,7 +11,7 @@ import sys
 
 ##configuration parameters
 router_queue_size = 0  # 0 means unlimited
-simulation_time = 10  # give the network sufficient time to transfer all packets before quitting
+simulation_time = 15  # give the network sufficient time to transfer all packets before quitting
 
 if __name__ == '__main__':
     object_L = []  # keeps track of objects, so we can kill their threads
@@ -23,14 +23,16 @@ if __name__ == '__main__':
     object_L.append(server)
 
     # create routers and routing tables for connected clients (subnets)
-    router_a_rt_tbl_D = {1: {0: 1}}  # packet to host 1 through interface 0 for cost 1
+    router_a_rt_tbl_D = {1: {0: 1,   1: '~'},
+                         2: {0: '~', 1: '~'}}  # packet to host 1 through interface 0 for cost 1
     router_a = network.Router(name='A',
                               intf_cost_L=[1, 1],
                               intf_capacity_L=[500, 500],
                               rt_tbl_D=router_a_rt_tbl_D,
                               max_queue_size=router_queue_size)
     object_L.append(router_a)
-    router_b_rt_tbl_D = {2: {1: 3}}  # packet to host 2 through interface 1 for cost 3
+    router_b_rt_tbl_D = {1: {0: '~', 1: '~'},
+                         2: {0: '~', 1: 3}}  # packet to host 2 through interface 1 for cost 3
     router_b = network.Router(name='B',
                               intf_cost_L=[1, 3],
                               intf_capacity_L=[500, 100],
@@ -55,11 +57,21 @@ if __name__ == '__main__':
     for t in thread_L:
         t.start()
 
+    for obj in object_L:
+        if str(type(obj)) == "<class 'network.Router'>":
+            obj.print_routes()
+
+
+    # send out routing information from router A to router B interface 0
+    router_a.send_routes(1)
+
+    # give the network sufficient time to send all route updates
+    sleep(2)
     # create some send events
     for i in range(5):
         priority = i % 2
         print(priority)
-        client.udt_send(2, 'Sample client data %d' % i, priority)
+        client.udt_send(priority, 1, 2, 'data', 'Sample client data %d' % i)
 
     # give the network sufficient time to transfer all packets before quitting
     sleep(simulation_time)
