@@ -163,17 +163,19 @@ class Host:
         if pkt_S is not None:
             p = NetworkPacket.from_byte_S(pkt_S)
             if p.prot_S == 'data':
-                print('%s: received packet "%s"' % (self, pkt_S))
+                print('%s: received packet "%s"\nPacket has a priority of %d' % (self, pkt_S, p.priority))
                 message = "Reply to: " + p.data_S
                 p2 = NetworkPacket(p.priority, p.dst_addr, p.src_addr, 'reply', message)
                 print('%s: sending a reply packet "%s" to Router %s' % (self, message, p.src_addr))
                 self.udt_send(p.priority, self.addr, p.src_addr, 'reply', p2.to_byte_S())
             elif p.prot_S == 'control':
-                print('%s: received packet "%s"' % (self, pkt_S))
+                #print('%s: received a control packet "%s"\nPacket has a priority of %d' % (self, pkt_S, p.priority))
+                print('%s: received a control packet with priority %d' % (self, p.priority))
             elif p.prot_S == 'reply':
-                print('%s: reply received packet "%s"' % (self, pkt_S))
+                #print('%s: reply packet received  "%s"\nPacket has a priority of %d' % (self, pkt_S, p.priority))
+                print('%s: reply packet received with priority %d' % (self, p.priority))
             else:
-                raise Exception('%s: Unknown packet type in packet %s' % (self, p))
+                raise Exception('%s: Unknown packet type in packet "%s"\nPacket has a priority of %d' % (self, pkt_S, p.priority))
 
     ## thread target for the host to keep receiving data
     def run(self):

@@ -3,8 +3,8 @@ Created on Oct 12, 2016
 
 @author: mwitt_000, LizzieHerman, ColleenRothe
 '''
-import network
-import link
+import network_1
+import link_1
 import threading
 from time import sleep
 import sys
@@ -17,15 +17,15 @@ if __name__ == '__main__':
     object_L = []  # keeps track of objects, so we can kill their threads
 
     # create network hosts
-    client = network.Host(1)
+    client = network_1.Host(1)
     object_L.append(client)
-    server = network.Host(2)
+    server = network_1.Host(2)
     object_L.append(server)
 
     # create routers and routing tables for connected clients (subnets)
     router_a_rt_tbl_D = {1: {0: 1,   1: '~'},
                          2: {0: '~', 1: '~'}}  # packet to host 1 through interface 0 for cost 1
-    router_a = network.Router(name='A',
+    router_a = network_1.Router(name='A',
                               intf_cost_L=[1, 1],
                               intf_capacity_L=[500, 500],
                               rt_tbl_D=router_a_rt_tbl_D,
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     object_L.append(router_a)
     router_b_rt_tbl_D = {1: {0: '~', 1: '~'},
                          2: {0: '~', 1: 3}}  # packet to host 2 through interface 1 for cost 3
-    router_b = network.Router(name='B',
+    router_b = network_1.Router(name='B',
                               intf_cost_L=[1, 3],
                               intf_capacity_L=[500, 100],
                               rt_tbl_D=router_b_rt_tbl_D,
@@ -41,13 +41,13 @@ if __name__ == '__main__':
     object_L.append(router_b)
 
     # create a Link Layer to keep track of links between network nodes
-    link_layer = link.LinkLayer()
+    link_layer = link_1.LinkLayer()
     object_L.append(link_layer)
 
     # add all the links
-    link_layer.add_link(link.Link(client, 0, router_a, 0))
-    link_layer.add_link(link.Link(router_a, 1, router_b, 0))
-    link_layer.add_link(link.Link(router_b, 1, server, 0))
+    link_layer.add_link(link_1.Link(client, 0, router_a, 0))
+    link_layer.add_link(link_1.Link(router_a, 1, router_b, 0))
+    link_layer.add_link(link_1.Link(router_b, 1, server, 0))
 
     # start all the objects
     thread_L = []
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         t.start()
 
     for obj in object_L:
-        if str(type(obj)) == "<class 'network.Router'>":
+        if str(type(obj)) == "<class 'network_1.Router'>":
             obj.print_routes()
 
 
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     # print the final routing tables
     for obj in object_L:
-        if str(type(obj)) == "<class 'network.Router'>":
+        if str(type(obj)) == "<class 'network_1.Router'>":
             obj.print_routes()
 
     # join all threads
