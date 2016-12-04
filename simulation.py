@@ -61,33 +61,46 @@ if __name__ == '__main__':
                          'C': {0: '~', 1: '~', 2: 1},
                          'D': {0: 0, 1: 0, 2: 0}}
 
+    router_a_mpls_tbl = {'in_label': ['~','~'],'in_intf': ['0','3'], 'out_label': ['10','12'], 'out_intf': ['2','1']}
+
+    router_b_mpls_tbl = {'in_label': ['12'], 'in_intf': ['0'], 'out_label': ['14'], 'out_intf': ['1']}
+
+    router_c_mpls_tbl = {'in_label': ['10'], 'in_intf': ['0'], 'out_label': ['16'], 'out_intf': ['1']}
+
+    router_d_mpls_tbl = {'in_label': ['14', '16'], 'in_intf': ['0', '2'], 'out_label': ['~', '~'], 'out_intf': ['1', '1']}
+
+
     router_a = network.Router(name='A',
                               intf_cost_L=[1, 1, 2, 1],
                               intf_capacity_L=[500, 500, 100, 500],
 
                               rt_tbl_D=router_a_rt_tbl_D,
-                              max_queue_size=router_queue_size)
+                              max_queue_size=router_queue_size,
+                              mpls_tbl=router_a_mpls_tbl)
     object_L.append(router_a)
 
     router_b = network.Router(name='B',
                               intf_cost_L=[1, 2],
                               intf_capacity_L=[500, 100],
                               rt_tbl_D=router_b_rt_tbl_D,
-                              max_queue_size=router_queue_size)
+                              max_queue_size=router_queue_size,
+                              mpls_tbl=router_b_mpls_tbl)
     object_L.append(router_b)
 
     router_c = network.Router(name='C',
                               intf_cost_L=[2, 1],
                               intf_capacity_L=[100, 500],
                               rt_tbl_D=router_c_rt_tbl_D,
-                              max_queue_size=router_queue_size)
+                              max_queue_size=router_queue_size,
+                              mpls_tbl=router_c_mpls_tbl)
     object_L.append(router_c)
 
     router_d = network.Router(name='D',
                               intf_cost_L=[2, 1, 1],
                               intf_capacity_L=[100, 500, 500],
                               rt_tbl_D=router_d_rt_tbl_D,
-                              max_queue_size=router_queue_size)
+                              max_queue_size=router_queue_size,
+                              mpls_tbl=router_d_mpls_tbl)
     object_L.append(router_d)
 
     # create a Link Layer to keep track of links between network nodes
@@ -112,21 +125,24 @@ if __name__ == '__main__':
     for t in thread_L:
         t.start()
 
-    for obj in object_L:
-        if str(type(obj)) == "<class 'network.Router'>":
-            obj.print_routes()
+    #for obj in object_L:
+    #    if str(type(obj)) == "<class 'network.Router'>":
+    #        obj.print_routes()
 
-    router_a.send_routes(1)  # send routes from A to B
+    #router_a.send_routes(1)  # send routes from A to B
     # router_a.send_routes(2)  # send routes from A to C
 
-    sleep(route_time)
-    print("\n\nstarting sample messages\n\n")
+    #sleep(route_time)
+    #print("\n\nstarting sample messages\n\n")
 
     # create some send events
-    for i in range(5):
-        priority = i % 2
-        print(priority)
-        host_one.udt_send(0, 1, 3, 'data', 'Sample client data %d' % i)
+    ##for i in range(5):
+    #    priority = i % 2
+    #   print(priority)
+    #   host_one.udt_send(0, 1, 3, 'data', 'Sample client data %d' % i)
+
+    host_one.udt_send(0, 1, 3, 'data', 'me: you should really start the Networks assignment; me to me: nah, you have two weeks')
+    host_two.udt_send(1, 2, 3, 'data', 'I can\'t believe you called this a dbz meme, that is obviously young Goku and Krillin')
 
     # give the network sufficient time to transfer all packets before quitting
     sleep(simulation_time)

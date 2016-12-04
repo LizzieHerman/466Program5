@@ -7,7 +7,7 @@ Created on Oct 12, 2016
 import queue
 import threading
 import time
-import network
+import network_2
 
 
 ## An abstraction of a link between router interfaces
@@ -43,7 +43,11 @@ class Link:
                 if intf_a.next_avail_time <= time.time():
                     # transmit the packet
                     pkt_S = intf_a.get('out')
-                    p = network.NetworkPacket.from_byte_S(pkt_S)
+                    if pkt_S[0] == '#':
+                        mpls = network_2.MPLS_Frame.from_byte_S(pkt_S)
+                        p = mpls.pkt
+                    else:
+                        p = network_2.NetworkPacket.from_byte_S(pkt_S)
                     intf_b.put(1 - p.priority, pkt_S, 'in')
                     # update the next free time of the inteface according to serialization delay
                     pkt_size = len(pkt_S) * 8  # assuming each characted is 8 bits

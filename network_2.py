@@ -1,7 +1,7 @@
 '''
 Created on Oct 12, 2016
 
-@author: mwitt_000, LizzieHerman, ColleenRothe
+@author: mwitt_000, LizzieHerman, ColleenRothe, Jason Sanders
 '''
 from __future__ import print_function
 import queue
@@ -137,6 +137,28 @@ class NetworkPacket:
         return self(priority, src_addr, dst_addr, prot_S, data_S)
 
 
+class MPLS_Frame:
+    label_S_length = 2
+    flag_S_length = 1
+    def __init__(self, label, pkt):
+        self.flag = '#'
+        self.label = label
+        self.pkt = pkt
+
+    def to_byte_S(self):
+        byte_S = str(self.flag).zfill(self.flag_S_length)
+        byte_S += str(self.label).zfill(self.label_S_length)
+        byte_S += self.pkt.to_byte_S()
+        return byte_S
+
+    @classmethod
+    def from_byte_S(self, byte_S):
+        label = byte_S[self.flag_S_length : self.flag_S_length + self.label_S_length]
+        pkt_S = byte_S[self.flag_S_length + self.label_S_length :]
+        pkt = NetworkPacket.from_byte_S(pkt_S)
+        return self(label, pkt)
+
+
 ## Implements a network host for receiving and transmitting data
 class Host:
     ##@param addr: address of this node represented as an integer
@@ -165,10 +187,10 @@ class Host:
             p = NetworkPacket.from_byte_S(pkt_S)
             if p.prot_S == 'data':
                 print('%s: received packet "%s"\nPacket has a priority of %d' % (self, pkt_S, p.priority))
-                message = "Reply to: " + p.data_S
-                p2 = NetworkPacket(p.priority, p.dst_addr, p.src_addr, 'reply', message)
-                print('%s: sending a reply packet "%s" to Router %s' % (self, message, p.src_addr))
-                self.udt_send(p.priority, self.addr, p.src_addr, 'reply', p2.to_byte_S())
+                #message = "Reply to: " + p.data_S
+                #p2 = NetworkPacket(p.priority, p.dst_addr, p.src_addr, 'reply', message)
+                #print('%s: sending a reply packet "%s" to Router %s' % (self, message, p.src_addr))
+                #self.udt_send(p.priority, self.addr, p.src_addr, 'reply', p2.to_byte_S())
             elif p.prot_S == 'control':
                 # print('%s: received a control packet "%s"\nPacket has a priority of %d' % (self, pkt_S, p.priority))
                 print('%s: received a control packet with priority %d' % (self, p.priority))
@@ -248,7 +270,7 @@ class Router:
     # @param intf_capacity_L: capacities of outgoing interfaces in bps
     # @param rt_tbl_D: routing table dictionary (starting reachability), eg. {1: {1: 1}} # packet to host 1 through interface 1 for cost 1
     # @param max_queue_size: max queue length (passed to Interface)
-    def __init__(self, name, intf_cost_L, intf_capacity_L, rt_tbl_D, max_queue_size):
+    def __init__(self, name, intf_cost_L, intf_capacity_L, rt_tbl_D, max_queue_size, mpls_tbl):
         self.stop = False  # for thread termination
         self.name = name
         # create a list of interfaces
@@ -260,6 +282,7 @@ class Router:
         # set up the routing table for connected hosts
         self.rt_tbl_D = rt_tbl_D
         self.n_intf = len(self.intf_L)
+        self.mpls_tbl = mpls_tbl
 
         ## called when printing the object
 
@@ -275,71 +298,58 @@ class Router:
             pkt_S = self.intf_L[i].get('in')
             # if packet exists make a forwarding decision
             if pkt_S is not None:
-                p = NetworkPacket.from_byte_S(pkt_S)  # parse a packet out
-                if p.prot_S == 'data':
-                    self.forward_packet(p, i)
-                elif p.prot_S == 'reply':
-                    self.forward_packet(p, i)
-                elif p.prot_S == 'control':
-                    self.update_routes(p, i)
+                if pkt_S[0] == '#':
+                    mpls = MPLS_Frame.from_byte_S(pkt_S)
+                    p = mpls.pkt
+                    if p.prot_S == 'data':
+                        self.forward_packet(mpls, i)
+                    elif p.prot_S == 'reply':
+                        self.forward_packet(mpls, i)
+                    elif p.prot_S == 'control':
+                        self.update_routes(mpls, i)
+                    else:
+                        raise Exception('%s: Unknown packet type in packet %s' % (self, p))
+
                 else:
-                    raise Exception('%s: Unknown packet type in packet %s' % (self, p))
+                    p = NetworkPacket.from_byte_S(pkt_S)
+                    if p.prot_S == 'data':
+                        self.forward_packet(p, i)
+                    elif p.prot_S == 'reply':
+                        self.forward_packet(p, i)
+                    elif p.prot_S == 'control':
+                        self.update_routes(p, i)
+                    else:
+                        raise Exception('%s: Unknown packet type in packet %s' % (self, p))
 
     ## forward the packet according to the routing table
     #  @param p Packet to forward
     #  @param i Incoming interface number for packet p
     def forward_packet(self, p, i):
         try:
-            # TODO: Here you will need to implement a lookup into the
-            # forwarding table to find the appropriate outgoing interface
-            # for now we assume the outgoing interface is (i+1)%2
-            if self.n_intf == 2:
-                self.intf_L[(i + 1) % 2].put(1, p.to_byte_S(), 'out', True)
+            net_pkt = None
+            j = 0
+            if self.name is 'A':
+                print('got into a forwarding')
+                net_pkt = p
+                in_intf = self.mpls_tbl.get('in_intf')
+                if str(i) in in_intf:
+                    j = in_intf.index(str(i))
             else:
-                col = self.rt_tbl_D.get(str(p.dst_addr))
-                poss_routes = []
-                shortest_route = 100
-                for j in col:
-                    if col[j] is not '~' and int(col[j]) < shortest_route:
-                        if len(poss_routes) is 0:
-                            shortest_route = int(col[j])
-                            poss_routes.append(j)
-                        else:
-                            poss_routes.clear()
-                            shortest_route = int(col[j])
-                            poss_routes.append(j)
-                    elif col[j] is not '~' and int(col[j]) == shortest_route:
-                        poss_routes.append(j)
-                if len(poss_routes) == 1:
-                    self.intf_L[poss_routes[0]].put(1,p.to_byte_S(), 'out', True)
-                elif len(poss_routes) > 1:
-                    routes = []
-                    col_nam = ['1', '2', '3', 'A', 'B', 'C', 'D']
-                    for k in poss_routes:
-                        for blah in col_nam:
-                            if blah is self.name:
-                                continue
-                            col = self.rt_tbl_D.get(blah)
-                            if col[k] is not '~' and int(col[k]) < shortest_route:
-                                if len(routes) is 0:
-                                    shortest_route = int(col[k])
-                                    routes.append(k)
-                                else:
-                                    routes.clear()
-                                    shortest_route = int(col[k])
-                                    routes.append(k)
-                            elif col[k] is not '~' and int(col[k]) == shortest_route:
-                                routes.append(k)
-                    #print("routes: ", routes)
-                    if len(routes) == 1:
-                        self.intf_L[routes[0]].put(1, p.to_byte_S(), 'out', True)
-                    else:
-                        print('SOMETHING WENT WRONG MATE 1')
-                else:
-                    print('SOMETHING WENT WRONG MATE 2')
+                print(p is MPLS_Frame)
+                in_label = p.label
+                net_pkt = p.pkt
+                in_labels = self.mpls_tbl.get('in_label')
+                if in_label in in_labels:
+                    j = in_labels.index(in_label)
 
-            #self.intf_L[(i + 1) % 2].put(1, p.to_byte_S(), 'out', True)
-            print('%s: forwarding packet "%s" from interface %d to %d' % (self, p, i, (i + 1) % 2))
+            out_label = self.mpls_tbl.get('out_label')[j]
+            out_intf = int(self.mpls_tbl.get('out_intf')[j])
+            if self.name == 'D':
+                self.intf_L[out_intf].put( 1- net_pkt.priority, net_pkt.to_byte_S(), 'out', True)
+            else:
+                mpls_pkt = MPLS_Frame(out_label, net_pkt)
+                self.intf_L[out_intf].put(1 - net_pkt.priority, mpls_pkt.to_byte_S(), 'out', True)
+
         except queue.Full:
             print('%s: packet "%s" lost on interface %d' % (self, p, i))
             pass
@@ -483,3 +493,4 @@ class Router:
             if self.stop:
                 print(threading.currentThread().getName() + ': Ending')
                 return
+
