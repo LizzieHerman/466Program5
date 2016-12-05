@@ -11,7 +11,7 @@ import sys
 
 ##configuration parameters
 router_queue_size = 0  # 0 means unlimited
-simulation_time = 40  # give the network sufficient time to transfer all packets before quitting
+simulation_time = 20  # give the network sufficient time to transfer all packets before quitting
 route_time = 20
 
 if __name__ == '__main__':
@@ -73,7 +73,6 @@ if __name__ == '__main__':
     router_a = network.Router(name='A',
                               intf_cost_L=[1, 1, 2, 1],
                               intf_capacity_L=[500, 500, 100, 500],
-
                               rt_tbl_D=router_a_rt_tbl_D,
                               max_queue_size=router_queue_size,
                               mpls_tbl=router_a_mpls_tbl)
@@ -141,16 +140,17 @@ if __name__ == '__main__':
     #   print(priority)
     #   host_one.udt_send(0, 1, 3, 'data', 'Sample client data %d' % i)
 
+    # print the MPLS tables
+    for obj in object_L:
+        if str(type(obj)) == "<class 'network.Router'>":
+            obj.print_MPLS()
+
     host_one.udt_send(0, 1, 3, 'data', 'me: you should really start the Networks assignment; me to me: nah, you have two weeks')
     host_two.udt_send(1, 2, 3, 'data', 'I can\'t believe you called this a dbz meme, that is obviously young Goku and Krillin')
 
     # give the network sufficient time to transfer all packets before quitting
     sleep(simulation_time)
 
-    # print the final routing tables
-    for obj in object_L:
-        if str(type(obj)) == "<class 'network.Router'>":
-            obj.print_routes()
 
     # join all threads
     for o in object_L:

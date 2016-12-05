@@ -31,9 +31,12 @@ class Interface:
             if in_or_out == 'in':
                 tuple_S = self.in_queue.get(False)
                 pkt_S = tuple_S[1]
-                if 1 - tuple_S[0] == 0:
+                if tuple_S[0] == 1:
+                    #print(self.num_prior_in_zero)
                     self.num_prior_in_zero -= 1
-                if 1 - tuple_S[0] == 1:
+                else:
+                    #print(self.num_prior_in_one)
+                    #if tuple_S[0] == 0:
                     self.num_prior_in_one -= 1
                 # if pkt_S is not None:
                 #                     print('getting packet from the IN queue')
@@ -41,9 +44,10 @@ class Interface:
             else:
                 tuple_S = self.out_queue.get(False)
                 pkt_S = tuple_S[1]
-                if 1 - tuple_S[0] == 0:
+                if tuple_S[0] == 1:
                     self.num_prior_out_zero -= 1
-                if 1 - tuple_S[0] == 1:
+                else:
+                #if tuple_S[0] == 0:
                     self.num_prior_out_one -= 1
                 # if pkt_S is not None:
                 #                     print('getting packet from the OUT queue')
@@ -57,17 +61,17 @@ class Interface:
     # @param block - if True, block until room in queue, if False may throw queue.Full exception
     def put(self, priority, pkt, in_or_out, block=False):
         if in_or_out == 'out':
-            if 1-priority == 0:
+            if priority == 1:
                 self.num_prior_out_zero += 1
-            if 1-priority == 1:
+            if priority == 0:
                 self.num_prior_out_one += 1
             # print('putting packet in the OUT queue')
             self.out_queue.put((priority, pkt), block)
 
         else:
-            if 1-priority == 0:
+            if priority == 1:
                 self.num_prior_in_zero += 1
-            if 1-priority == 1:
+            if priority == 0:
                 self.num_prior_in_one += 1
             # print('putting packet in the IN queue')
             self.in_queue.put((priority, pkt), block)
@@ -78,6 +82,7 @@ class Interface:
 # NOTE: This class will need to be extended to for the packet to include
 # the fields necessary for the completion of this assignment.
 class NetworkPacket:
+    flag = False
     # packet encoding lengths
     src_addr_S_length = 5
     dst_addr_S_length = 5
@@ -140,13 +145,13 @@ class NetworkPacket:
 class MPLS_Frame:
     label_S_length = 2
     flag_S_length = 1
+    flag = True
     def __init__(self, label, pkt):
-        self.flag = '#'
         self.label = label
         self.pkt = pkt
 
     def to_byte_S(self):
-        byte_S = str(self.flag).zfill(self.flag_S_length)
+        byte_S = '#'.zfill(self.flag_S_length)
         byte_S += str(self.label).zfill(self.label_S_length)
         byte_S += self.pkt.to_byte_S()
         return byte_S
@@ -177,7 +182,7 @@ class Host:
     # @param priority: packet priority
     def udt_send(self, priority, src_addr, dst_addr, prot_S, data_S):
         p = NetworkPacket(priority, src_addr, dst_addr, prot_S, data_S)
-        print('%s: sending packet "%s"' % (self, p))
+        print('%s: sending packet "%s"\nPacket has a priority of %d' % (self, p, priority))
         self.intf_L[0].put(1-priority, p.to_byte_S(), 'out')  # send packets always enqueued successfully
 
     ## receive packet from the network layer
@@ -328,14 +333,14 @@ class Router:
         try:
             net_pkt = None
             j = 0
-            if self.name is 'A':
-                print('got into a forwarding')
+            if p.flag is False:
+                #print('got into a forwarding')
                 net_pkt = p
                 in_intf = self.mpls_tbl.get('in_intf')
                 if str(i) in in_intf:
                     j = in_intf.index(str(i))
             else:
-                print(p is MPLS_Frame)
+                #print(p is MPLS_Frame)
                 in_label = p.label
                 net_pkt = p.pkt
                 in_labels = self.mpls_tbl.get('in_label')
@@ -484,6 +489,19 @@ class Router:
 
         print("\n")#\t\tCost\n")
 
+    def print_MPLS(self):
+        print('%s: MPLS table' % self)
+
+        for col in self.mpls_tbl:
+            print("\t", col, end="")
+
+        for i in range(len(self.mpls_tbl.get("in_intf"))):
+            print()
+            for col in self.mpls_tbl:
+                x = self.mpls_tbl.get(col)
+                print("\t\t", x[i], end="")
+
+        print("\n")
 
     ## thread target for the host to keep forwarding data
     def run(self):
@@ -493,4 +511,3 @@ class Router:
             if self.stop:
                 print(threading.currentThread().getName() + ': Ending')
                 return
-
